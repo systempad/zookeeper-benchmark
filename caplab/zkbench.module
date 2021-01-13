@@ -4,7 +4,7 @@ name: zkbench
 description: >-
    installs https://github.com/brownsys/zookeeper-benchmark
    built against ZooKeeper 3.6.2
-version: 1.6.2
+version: 1.6.3
 pre-activate: zkbench.pre-activate
 require: caplib>=0.5.7
 contents:
@@ -44,3 +44,4 @@ settings:
   lowerbound: 8000 # Submit more requests when the number in flight falls
                    # below this value
   sync: true # submit requests synchronously
+  logdir: /opt/zkbench/logs # logs and latency files go in this directory

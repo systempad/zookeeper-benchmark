@@ -24,6 +24,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+set -u
+
 if [[ $LAB_LOGLEVEL == trace ]]; then
     xtrace="-x"
     set -o xtrace;
@@ -31,9 +33,16 @@ else
     xtrace=
 fi
 
-source ${LAB_MODULES_ROOT?}/caplib/current/install.sh || exit 1
+declare -r caplib=$LAB_MODULES_ROOT/caplib/current
 
-pm=$(LAB-system_package_manager) || exit
+source $caplib/install.sh &&
+    source $caplib/module.sh &&
+    source $LAB_MODULES_ROOT/labconfig/current/config.sh || exit
+
+this_module_id=$(LAB-this_module) &&
+    settings=$(LAB-get_module_settings $this_module_id) &&
+    logdir=$(yq r - logdir <<<"$settings") &&
+    pm=$(LAB-system_package_manager) || exit
 
 case $pm in
     apt-get*) jre="default-jre" ;;
@@ -42,4 +51,11 @@ case $pm in
        exit 1 ;;
 esac
 
-sudo $pm install $jre
+[[ $logdir =~ ^[[:print:]]+$ ]] || {
+    >&2 echo "Log directory (logdir) setting is missing or invalid."
+    exit 1
+}
+
+sudo bash $xtrace <<EOF
+$pm install $jre && mkdir -p "$logdir" && chown ec2-user:ec2-user "$logdir"
+EOF
