@@ -40,8 +40,9 @@ source $CAPLIB/this.sh &&
     source $CAPLIB/nodes.sh &&
     source $LAB_MODULES_ROOT/labconfig/current/config.sh || exit
 
-THIS_MODULE_ID=$(LAB-this_module) || exit
-THIS_MODULE_DIR="$LAB_MODULES_ROOT/$THIS_MODULE_ID"
+THIS_MODULE_ID=$(LAB-this_module) &&
+    THIS_MODULE_DIR="$LAB_MODULES_ROOT/$(LAB-module_path $THIS_MODULE_ID)" ||
+	exit
 BENCHCONF=$THIS_MODULE_DIR/zkbench.conf
 declare -r THIS_MODULE_ID THIS_MODULE_DIR BENCHCONF
 
@@ -66,11 +67,11 @@ write_config() {
 	}
     else
 	>&2 echo "INFO: 'target' key not found in module settings."
-	local this_cluster=$(LAB-this_cluster_id) || return
+	local this_cluster=$(LAB-this_cluster) || return
 	[[ $this_cluster =~ ^.*/(.*)$ ]] &&
 	    target="zookeeper/${BASH_REMATCH[1]}" || {
 		>&2 echo "INTERNAL ERROR: invalid output '$this_cluster' from"\
-		    "LAB-this_cluster_id()"
+		    "LAB-this_cluster()"
 		return 1
 	    }
 	>&2 echo "INFO: defaulting to target $target"
@@ -90,12 +91,12 @@ write_config() {
     declare -A node=([0]="$(LAB-node_attributes node)")
     while read -r $node; do
 	[[ ${node[cluster]} == $target ]] || continue
-	[[ ${node[idx]} =~ ^n([[:digit:]]+)$ ]] || {
-	    >&2 echo "ERROR: invalid node id '${node[idx]}' for instance"\
+	[[ ${node[id]} =~ ^$LAB_NODEID_REMATCH$ ]] || {
+	    >&2 echo "ERROR: invalid node id '${node[id]}' for instance"\
 		"${node[iid]} in cluster ${node[cluster]}"
 	    return 1
 	}
-	echo "server.${BASH_REMATCH[1]}=${node[ip]}:2181"
+	echo "server.${BASH_REMATCH[2]}=${node[ip]}:2181"
 	target_found=1
     done <$LAB_CLUSTER_NODES
 

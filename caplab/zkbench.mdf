@@ -4,9 +4,9 @@ name: zkbench
 description: >-
    installs https://github.com/brownsys/zookeeper-benchmark
    built against ZooKeeper 3.7.0
-version: 1.7.0
+version: 1.7.2
 pre-activate: zkbench.pre-activate
-require: caplib>=0.5.7
+require: caplib>=0.9.1
 contents:
   - files: [ "zkbench.service", "zkbench" ]
   - root: ../target
