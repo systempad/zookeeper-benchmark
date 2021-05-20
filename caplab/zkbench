@@ -88,7 +88,7 @@ write_config() {
     }' <<<"$settings"
 
     local target_found=
-    declare -A node=([0]="$(LAB-node_attributes node)")
+    declare -A node ; LAB-node_attributes node
     while read -r $node; do
 	[[ ${node[cluster]} == $target ]] || continue
 	[[ ${node[id]} =~ ^$LAB_NODEID_REMATCH$ ]] || {
