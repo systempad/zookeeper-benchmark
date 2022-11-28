@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/opt/caplab/modules/bash/active/bash
 #
 # The MIT License
 #
-# Copyright 2020 Systempad, LLC http://caplab.dev/
+# Copyright 2022 Systempad, LLC http://caplab.dev/
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -33,15 +33,18 @@ else
     xtrace=
 fi
 
-declare -r caplib=$LAB_MODULES_ROOT/caplib/current
+declare -r caplib=$LAB_MODULES_ROOT/caplib/active
 
 source $caplib/install.sh &&
-    source $caplib/module.sh &&
-    source $LAB_MODULES_ROOT/labconfig/current/config.sh || exit
+    source $caplib/module_config.sh &&
+    source $caplib/paths.sh &&
+    source $caplib/errmsg.sh || exit
+
+declare -- this_module_id
+declare -A settings
 
 this_module_id=$(LAB-this_module) &&
-    settings=$(LAB-get_module_settings $this_module_id) &&
-    logdir=$(yq r - logdir <<<"$settings") &&
+    LAB-get_module_settings $this_module_id settings &&
     pm=$(LAB-system_package_manager) || exit
 
 case $pm in
@@ -51,11 +54,12 @@ case $pm in
        exit 1 ;;
 esac
 
-[[ $logdir =~ ^[[:print:]]+$ ]] || {
-    >&2 echo "Log directory (logdir) setting is missing or invalid."
-    exit 1
-}
+[[ ${settings[logDir]-} =~ ^$LAB_ABSOLUTE_PATH_RE$ ]] ||
+    LAB-error "Log directory (logDir) setting is missing or invalid."\
+	      "expected an absolute path" || exit 1
 
 sudo bash $xtrace <<EOF
-$pm install $jre && mkdir -p "$logdir" && chown ec2-user:ec2-user "$logdir"
+$pm install $jre && mkdir -p "${settings[logDir]}"  &&
+    mkdir -p $LAB_MODULES_CONF/zkbench              &&
+    chown $LAB_USER:$LAB_USER "${settings[logDir]}" $LAB_MODULES_CONF/zkbench
 EOF

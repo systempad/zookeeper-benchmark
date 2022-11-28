@@ -1,0 +1,106 @@
+#!/opt/caplab/bin/bash
+
+#
+# The MIT License
+#
+# Copyright 2022 Systempad, LLC http://caplab.dev/
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the “Software”), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# @ file This script writes a config file for zkbench with settings from
+#        caplab config. https://github.com/brownsys/zookeeper-benchmark
+
+if [[ $LAB_LOGLEVEL == trace ]]; then
+    xtrace="-x"
+    set -o xtrace;
+else
+    xtrace=
+fi
+
+set +m -u -o pipefail
+shopt -s expand_aliases lastpipe
+
+LAB_LIBDIR=$LAB_MODULES_ROOT/caplib/active &&
+    source $LAB_LIBDIR/cluster.sh &&
+    source $LAB_LIBDIR/paths.sh &&
+    source $LAB_LIBDIR/module_config.sh &&
+    source $LAB_LIBDIR/nodes.sh || exit
+
+declare -r BENCHCONF=$LAB_MODULES_CONF/zkbench/zkbench.conf
+
+declare -A module_settings=(
+    [*target]="^$LAB_CLUSTER_ID_RE$"
+    [port]="^$LAB_PORT_RE$"
+    [*logDir]="^$LAB_ABSOLUTE_PATH_RE$"
+)
+
+declare -A zkbench_options=(
+    [totalTime]="^$LAB_NATURAL_RE$"
+    [interval]="^$LAB_NATURAL_RE$"
+    [totalOperations]="^$LAB_NATURAL_RE$"
+    [lowerbound]="^$LAB_NATURAL_RE$"
+    [sync]="^(true|false)$"
+)
+
+declare -- zkbench_option_names=${!zkbench_options[*]}
+
+
+# Write a configuration file for brownsys/zookeeper-benchmark to stdout.
+# The benchmark config contains the key=value pairs with the settings of
+# this lab module followed by a list of ZooKeeper servers from the lab
+# cluster whose id is in the setting 'target'. ZooKeeper is expected to
+# run on the port in the config setting 'port' (defaults to the standard
+# ZooKeeper port 2181).
+write_config() {
+
+    LAB-get_service_settings zkbench module_settings zkbench_options\
+			     "^(${zkbench_option_names// /|})$" || return
+
+    [[ -r $LAB_WORKSPACE_NODES ]] || {
+	>&2 echo "INTERNAL ERROR: workspace nodes file $LAB_WORKSPACE_NODES"\
+	    "is missing or not readable"
+	return 1
+    }
+
+    local k
+    for k in ${!zkbench_options[@]}; do
+	echo "$k=${zkbench_options[$k]}"
+    done
+
+    local -i n=0  # current server number in zkbench config
+    declare -A node ; LAB-node_attributes node
+    while read -r $node; do
+	[[ ${node[cluster]} == ${module_settings[target]} ]] || continue
+	echo "server.$((++n))=${node[ip]}:${module_settings[port]:=2181}"
+    done <$LAB_WORKSPACE_NODES
+
+    [[ $n != 0 ]] || LAB-error "target cluster '${module_settings[target]}'"\
+			       "was not found in the cluster nodes file"\
+			       "$LAB_WORKSPACE_NODES" || return 1
+}
+
+
+# ---- main() ----
+
+LAB-file_uptodate $BENCHCONF || write_config >$BENCHCONF || {
+	rm -f $BENCHCONF
+	exit 1
+    }

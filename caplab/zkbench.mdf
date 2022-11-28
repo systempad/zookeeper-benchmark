@@ -1,14 +1,19 @@
 # -*-YAML-*-  a caplab module definition
 
 name: zkbench
-description: >-
-   installs https://github.com/brownsys/zookeeper-benchmark
-   built against ZooKeeper 3.7.0
-version: 1.7.3
-pre-activate: zkbench.pre-activate
-require: caplib>=0.9.1
+description: brownsys/zookeeper-benchmark built against ZooKeeper 3.8.0
+documentation: https://github.com/brownsys/zookeeper-benchmark
+version: 3.8.0-mk.1
+built-by: march@systempad.org
+require: caplib-^0.14.5
+
+hooks:
+  pre-activate: zkbench.pre-activate
+
 contents:
-  - files: [ "zkbench.service", "zkbench" ]
+  - files: >-
+      zkbench.pre-activate
+      configure-zkbench
   - root: ../target
     files: >-
       lib/guava-11.0.2.jar
@@ -26,9 +31,9 @@ contents:
       lib/slf4j-api-1.6.4.jar
       lib/jsr305-1.3.9.jar
       lib/netty-buffer-4.1.50.Final.jar
-      lib/zookeeper-3.7.0.jar
+      lib/zookeeper-3.8.0.jar
       lib/netty-3.10.5.Final.jar
-      lib/zookeeper-jute-3.7.0.jar
+      lib/zookeeper-jute-3.8.0.jar
       lib/netty-codec-4.1.50.Final.jar
       lib/netty-handler-4.1.50.Final.jar
       lib/netty-resolver-4.1.50.Final.jar
@@ -37,11 +42,21 @@ contents:
       lib/audience-annotations-0.5.0.jar
       lib/netty-common-4.1.50.Final.jar
       zkbenchmark-0.1-SNAPSHOT.jar
+
+service:
+  ExecStartPre: configure-zkbench
+  ExecStart: /usr/bin/java -cp $${LAB_MODULES_ROOT}/zkbench/active/lib/*:$${LAB_MODULES_ROOT}/zkbench/active/* edu.brown.cs.zkbenchmark.ZooKeeperBenchmark \
+     $${LAB_ARGS} --conf $${LAB_ROOT}/conf/modules/zkbench/zkbench.conf
+  User: caplab
+  WorkingDirectory: ${settings.logDir}
+
 settings:
-  totalTime: 30000 # Length of each test in milliseconds.
-  interval: 200 # Interval in milliseconds between request rate measurements.
+  totalTime: 30000       # Length of each test in milliseconds.
+  interval: 200          # Interval in ms between request rate measurements.
   totalOperations: 20000 # Target number of operations in flight
-  lowerbound: 8000 # Submit more requests when the number in flight falls
-                   # below this value
-  sync: true # submit requests synchronously
-  logdir: /opt/zkbench/logs # logs and latency files go in this directory
+  lowerbound: 8000       # Submit more requests when the number in flight falls
+                         # below this value
+  sync: true             # submit requests synchronously
+  logDir: /var/log/zkbench  # logs and latency files go in this directory
+  log: ${settings.logDir}/*.log
+  autostart: no
