@@ -28,28 +28,35 @@
 # @ file This script writes a config file for zkbench with settings from
 #        caplab config. https://github.com/brownsys/zookeeper-benchmark
 
-if [[ $LAB_LOGLEVEL == trace ]]; then
-    xtrace="-x"
-    set -o xtrace;
-else
-    xtrace=
-fi
-
 set +m -u -o pipefail
 shopt -s expand_aliases lastpipe
+
+[[ $LAB_LOGLEVEL == trace ]] && set -o xtrace
+[[ -o xtrace ]] &&
+    exec {BASH_XTRACEFD}>&2 &&
+    PS4="+\$BASHPID\${FUNCNAME:+\" \$FUNCNAME \${#FUNCNAME[@]}>\"} "
 
 LAB_LIBDIR=$LAB_MODULES_ROOT/caplib/active &&
     source $LAB_LIBDIR/cluster.sh &&
     source $LAB_LIBDIR/paths.sh &&
     source $LAB_LIBDIR/module_config.sh &&
-    source $LAB_LIBDIR/nodes.sh || exit
+    source $LAB_LIBDIR/nodes.sh &&
+    source $LAB_LIBDIR/util.sh || exit
 
-declare -r BENCHCONF=$LAB_MODULES_CONF/zkbench/zkbench.conf
+readonly BENCHCONF=$LAB_MODULES_CONF/zkbench/zkbench.conf
+
+# a non-empty space-separated list of rack and node ids
+LAB-list_re LAB_RACK_OR_NODE_ID_REMATCH2 RACK_OR_NODE_ID_LIST_REMATCH5
 
 declare -A module_settings=(
-    [*target]="^$LAB_CLUSTER_ID_RE$"
-    [port]="^$LAB_PORT_RE$"
-    [*logDir]="^$LAB_ABSOLUTE_PATH_RE$"
+    [*target_cluster]="^$LAB_CLUSTER_ID_RE$
+                       a cluster id"
+    [target_nodes]="^$RACK_OR_NODE_ID_LIST_REMATCH5$
+                     a list of node and rack ids"
+    [port]="^$LAB_PORT_RE$
+            a ZooKeeper client port number"
+    [*logDir]="^$LAB_ABSOLUTE_PATH_RE$
+               an absolute path to the log directory"
 )
 
 declare -A zkbench_options=(
@@ -66,11 +73,12 @@ declare -- zkbench_option_names=${!zkbench_options[*]}
 # Write a configuration file for brownsys/zookeeper-benchmark to stdout.
 # The benchmark config contains the key=value pairs with the settings of
 # this lab module followed by a list of ZooKeeper servers from the lab
-# cluster whose id is in the setting 'target'. ZooKeeper is expected to
+# cluster whose id is in the setting 'target_cluster'. If the 'target_nodes'
+# setting is specified, the list is further restricted to only contain the
+# racks and nodes from 'target_nodes'. ZooKeeper is expected to
 # run on the port in the config setting 'port' (defaults to the standard
 # ZooKeeper port 2181).
 write_config() {
-
     LAB-get_service_settings zkbench module_settings zkbench_options\
 			     "^(${zkbench_option_names// /|})$" || return
 
@@ -80,21 +88,39 @@ write_config() {
 	return 1
     }
 
+    local node_or_rack_id
+    declare -A filter=()
+
+    for node_or_rack_id in ${module_settings[target_nodes]-}; do
+	filter[$node_or_rack_id]=
+    done
+
     local k
     for k in ${!zkbench_options[@]}; do
 	echo "$k=${zkbench_options[$k]}"
     done
 
-    local -i n=0  # current server number in zkbench config
+    local -i found=0 matching=0  # the number of servers in target_cluster
+                   # and the number of those that match target_nodes (if given)
     declare -A node ; LAB-node_attributes node
     while read -r $node; do
-	[[ ${node[cluster]} == ${module_settings[target]} ]] || continue
-	echo "server.$((++n))=${node[ip]}:${module_settings[port]:=2181}"
+	[[ ${node[cluster]} == ${module_settings[target_cluster]} ]] || continue
+
+	((++found))
+
+	[[ ${#filter[@]} == 0 ||
+	     -v filter[${node[id]:0:1}] || -v filter[${node[id]}] ]] || continue
+
+	echo "server.$((++matching))=${node[ip]}:${module_settings[port]:=2181}"
     done <$LAB_WORKSPACE_NODES
 
-    [[ $n != 0 ]] || LAB-error "target cluster '${module_settings[target]}'"\
-			       "was not found in the cluster nodes file"\
-			       "$LAB_WORKSPACE_NODES" || return 1
+    { [[ $found != 0 ]] || LAB-error "target cluster"\
+			       "'${module_settings[target_cluster]}'"\
+            "was not found in the cluster nodes file $LAB_WORKSPACE_NODES"; } &&
+
+    { [[ $matching != 0 ]] || LAB-error "no nodes in target cluster"\
+            "'${module_settings[target_cluster]}' match target_nodes setting"\
+	    "(${module_settings[target_nodes]})"; } || return 1
 }
 
 

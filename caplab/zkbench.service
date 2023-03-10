@@ -1,6 +1,0 @@
-[Unit]
-Description=https://github.com/brownsys/zookeeper-benchmark
-After=network.target
-
-[Service]
-ExecStart=/bin/bash -c 'PATH=${LAB_ROOT}/bin:$PATH exec ${LAB_ROOT}/modules/zkbench/current/zkbench start'

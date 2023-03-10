@@ -45,15 +45,19 @@ contents:
 
 service:
   ExecStartPre: configure-zkbench
-  ExecStart: /usr/bin/java -cp $${LAB_MODULES_ROOT}/zkbench/active/lib/*:$${LAB_MODULES_ROOT}/zkbench/active/* edu.brown.cs.zkbenchmark.ZooKeeperBenchmark \
-     $${LAB_ARGS} --conf $${LAB_ROOT}/conf/modules/zkbench/zkbench.conf
+  ExecStart: /usr/bin/java
+             -cp $${LAB_MODULES_ROOT}/zkbench/active/lib/*:$${LAB_MODULES_ROOT}/zkbench/active/*
+             edu.brown.cs.zkbenchmark.ZooKeeperBenchmark
+             --conf $${LAB_ROOT}/conf/modules/zkbench/zkbench.conf $${LAB_ARGS}
   User: caplab
+  SuccessExitStatus: 143  # SIGTERM
   WorkingDirectory: ${settings.logDir}
+  TimeoutSec: 30
 
 settings:
   totalTime: 30000       # Length of each test in milliseconds.
   interval: 200          # Interval in ms between request rate measurements.
-  totalOperations: 20000 # Target number of operations in flight
+  totalOperations: 10000 # Target number of operations in flight
   lowerbound: 8000       # Submit more requests when the number in flight falls
                          # below this value
   sync: true             # submit requests synchronously
