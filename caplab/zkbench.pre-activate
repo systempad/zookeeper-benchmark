@@ -48,8 +48,8 @@ this_module_id=$(LAB-this_module) &&
     pm=$(LAB-system_package_manager) || exit
 
 case $pm in
-    apt-get*) jre="default-jre" ;;
-    yum*) jre="jre" ;;
+    */apt-get*) jre="default-jre" ;;
+    */yum*) jre="jre" ;;
     *) >&2 echo "invalid system package manager '$pm'"
        exit 1 ;;
 esac
