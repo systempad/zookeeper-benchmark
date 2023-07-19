@@ -1,9 +1,8 @@
-#!/opt/caplab/bin/bash
-
+#!/opt/systempad/bin/bash
 #
 # The MIT License
 #
-# Copyright 2022 Systempad, LLC http://caplab.dev/
+# Copyright 2023 Systempad, LLC http://systempad.cloud/
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -16,7 +15,7 @@
 # The above copyright notice and this permission notice shall be
 # included in all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
 # NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
@@ -25,45 +24,45 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# @ file This script writes a config file for zkbench with settings from
-#        caplab config. https://github.com/brownsys/zookeeper-benchmark
+# @ file This script writes a config file for zkbench with settings supplied
+#        by Systempad. https://github.com/brownsys/zookeeper-benchmark
 
 set +m -u -o pipefail
 shopt -s expand_aliases lastpipe
 
-[[ $LAB_LOGLEVEL == trace ]] && set -o xtrace
+[[ $PAD_LOGLEVEL == trace ]] && set -o xtrace
 [[ -o xtrace ]] &&
     exec {BASH_XTRACEFD}>&2 &&
     PS4="+\$BASHPID\${FUNCNAME:+\" \$FUNCNAME \${#FUNCNAME[@]}>\"} "
 
-LAB_LIBDIR=$LAB_MODULES_ROOT/caplib/active &&
-    source $LAB_LIBDIR/cluster.sh &&
-    source $LAB_LIBDIR/paths.sh &&
-    source $LAB_LIBDIR/module_config.sh &&
-    source $LAB_LIBDIR/nodes.sh &&
-    source $LAB_LIBDIR/util.sh || exit
+PAD_LIBDIR=$PAD_MODULES_ROOT/padlib/active &&
+    source $PAD_LIBDIR/cluster.sh &&
+    source $PAD_LIBDIR/paths.sh &&
+    source $PAD_LIBDIR/module_config.sh &&
+    source $PAD_LIBDIR/nodes.sh &&
+    source $PAD_LIBDIR/util.sh || exit
 
-readonly BENCHCONF=$LAB_MODULES_CONF/zkbench/zkbench.conf
+readonly BENCHCONF=$PAD_MODULES_CONF/zkbench/zkbench.conf
 
 # a non-empty space-separated list of rack and node ids
-LAB-list_re LAB_RACK_OR_NODE_ID_REMATCH2 RACK_OR_NODE_ID_LIST_REMATCH5
+PAD-list_re PAD_RACK_OR_NODE_ID_REMATCH2 RACK_OR_NODE_ID_LIST_REMATCH5
 
 declare -A module_settings=(
-    [*target_cluster]="^$LAB_CLUSTER_ID_RE$
+    [*target_cluster]="^$PAD_CLUSTER_ID_RE$
                        a cluster id"
     [target_nodes]="^$RACK_OR_NODE_ID_LIST_REMATCH5$
                      a list of node and rack ids"
-    [port]="^$LAB_PORT_RE$
+    [port]="^$PAD_PORT_RE$
             a ZooKeeper client port number"
-    [*logDir]="^$LAB_ABSOLUTE_PATH_RE$
+    [*logDir]="^$PAD_ABSOLUTE_PATH_RE$
                an absolute path to the log directory"
 )
 
 declare -A zkbench_options=(
-    [totalTime]="^$LAB_NATURAL_RE$"
-    [interval]="^$LAB_NATURAL_RE$"
-    [totalOperations]="^$LAB_NATURAL_RE$"
-    [lowerbound]="^$LAB_NATURAL_RE$"
+    [totalTime]="^$PAD_NATURAL_RE$"
+    [interval]="^$PAD_NATURAL_RE$"
+    [totalOperations]="^$PAD_NATURAL_RE$"
+    [lowerbound]="^$PAD_NATURAL_RE$"
     [sync]="^(true|false)$"
 )
 
@@ -72,18 +71,18 @@ declare -- zkbench_option_names=${!zkbench_options[*]}
 
 # Write a configuration file for brownsys/zookeeper-benchmark to stdout.
 # The benchmark config contains the key=value pairs with the settings of
-# this lab module followed by a list of ZooKeeper servers from the lab
+# this Systempad module followed by a list of ZooKeeper servers from the
 # cluster whose id is in the setting 'target_cluster'. If the 'target_nodes'
 # setting is specified, the list is further restricted to only contain the
 # racks and nodes from 'target_nodes'. ZooKeeper is expected to
 # run on the port in the config setting 'port' (defaults to the standard
 # ZooKeeper port 2181).
 write_config() {
-    LAB-get_service_settings zkbench module_settings zkbench_options\
+    PAD-get_service_settings zkbench module_settings zkbench_options\
 			     "^(${zkbench_option_names// /|})$" || return
 
-    [[ -r $LAB_WORKSPACE_NODES ]] || {
-	>&2 echo "INTERNAL ERROR: workspace nodes file $LAB_WORKSPACE_NODES"\
+    [[ -r $PAD_WORKSPACE_NODES ]] || {
+	>&2 echo "INTERNAL ERROR: workspace nodes file $PAD_WORKSPACE_NODES"\
 	    "is missing or not readable"
 	return 1
     }
@@ -102,7 +101,7 @@ write_config() {
 
     local -i found=0 matching=0  # the number of servers in target_cluster
                    # and the number of those that match target_nodes (if given)
-    declare -A node ; LAB-node_attributes node
+    declare -A node ; PAD-node_attributes node
     while read -r $node; do
 	[[ ${node[cluster]} == ${module_settings[target_cluster]} ]] || continue
 
@@ -112,13 +111,13 @@ write_config() {
 	     -v filter[${node[id]:0:1}] || -v filter[${node[id]}] ]] || continue
 
 	echo "server.$((++matching))=${node[ip]}:${module_settings[port]:=2181}"
-    done <$LAB_WORKSPACE_NODES
+    done <$PAD_WORKSPACE_NODES
 
-    { [[ $found != 0 ]] || LAB-error "target cluster"\
+    { [[ $found != 0 ]] || PAD-error "target cluster"\
 			       "'${module_settings[target_cluster]}'"\
-            "was not found in the cluster nodes file $LAB_WORKSPACE_NODES"; } &&
+            "was not found in the cluster nodes file $PAD_WORKSPACE_NODES"; } &&
 
-    { [[ $matching != 0 ]] || LAB-error "no nodes in target cluster"\
+    { [[ $matching != 0 ]] || PAD-error "no nodes in target cluster"\
             "'${module_settings[target_cluster]}' match target_nodes setting"\
 	    "(${module_settings[target_nodes]})"; } || return 1
 }
@@ -126,7 +125,7 @@ write_config() {
 
 # ---- main() ----
 
-LAB-file_uptodate $BENCHCONF || write_config >$BENCHCONF || {
+PAD-file_uptodate $BENCHCONF || write_config >$BENCHCONF || {
 	rm -f $BENCHCONF
 	exit 1
     }

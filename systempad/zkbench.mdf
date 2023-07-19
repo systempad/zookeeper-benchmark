@@ -1,11 +1,11 @@
-# -*-YAML-*-  a caplab module definition
+# -*-YAML-*-  a Systempad module definition
 
 name: zkbench
 description: brownsys/zookeeper-benchmark built against ZooKeeper 3.8.0
 documentation: https://github.com/brownsys/zookeeper-benchmark
 version: 3.8.0-mk.1
 built-by: march@systempad.org
-require: caplib-^0.14.5
+require: padlib-^0.14.5
 
 hooks:
   pre-activate: zkbench.pre-activate
@@ -46,10 +46,10 @@ contents:
 service:
   ExecStartPre: configure-zkbench
   ExecStart: /usr/bin/java
-             -cp $${LAB_MODULES_ROOT}/zkbench/active/lib/*:$${LAB_MODULES_ROOT}/zkbench/active/*
+             -cp $${PAD_MODULES_ROOT}/zkbench/active/lib/*:$${PAD_MODULES_ROOT}/zkbench/active/*
              edu.brown.cs.zkbenchmark.ZooKeeperBenchmark
-             --conf $${LAB_ROOT}/conf/modules/zkbench/zkbench.conf $${LAB_ARGS}
-  User: caplab
+             --conf $${PAD_ROOT}/conf/modules/zkbench/zkbench.conf $${PAD_ARGS}
+  User: systempad
   SuccessExitStatus: 143  # SIGTERM
   WorkingDirectory: ${settings.logDir}
   TimeoutSec: 30
