@@ -3,15 +3,17 @@
 name: zkbench
 description: brownsys/zookeeper-benchmark built against ZooKeeper 3.8.0
 documentation: https://github.com/brownsys/zookeeper-benchmark
-version: 3.8.0-mk.1
-built-by: march@systempad.org
+version: 3.8.0-mk.3
+built-by: march@systempad.cloud
 require: padlib-^0.14.5
 
 hooks:
+  pre-install: zkbench.pre-install
   pre-activate: zkbench.pre-activate
 
 contents:
   - files: >-
+      zkbench.pre-install
       zkbench.pre-activate
       configure-zkbench
   - root: ../target
@@ -62,5 +64,5 @@ settings:
                          # below this value
   sync: true             # submit requests synchronously
   logDir: /var/log/zkbench  # logs and latency files go in this directory
-  log: ${settings.logDir}/*.log
-  autostart: no
+  Log: ${settings.logDir}/*.log
+  Autostart: no

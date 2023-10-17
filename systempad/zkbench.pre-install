@@ -2,7 +2,7 @@
 #
 # The MIT License
 #
-# Copyright 2023 Systempad, LLC http://systempad.cloud/
+# Copyright 2023 Systempad, LLC http://systempad.cloud
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -24,31 +24,25 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# @file This is the pre-activate hook for module zkbench. It configures
-#       the zkbench log directory.
+# @file This is the pre-install hook for module zkbench. It verifies
+#       that the OS distro has a supported system package manager, and
+#       attempts to install the JRE.
 
 PAD_LIBDIR=$PAD_MODULES_ROOT/padlib/active &&
     source $PAD_LIBDIR/serious.sh &&
-    source $PAD_LIBDIR/module.sh &&
-    source $PAD_LIBDIR/module_config.sh &&
-    source $PAD_LIBDIR/paths.sh &&
+    source $PAD_LIBDIR/install.sh &&
+    source $PAD_LIBDIR/util.sh &&
     source $PAD_LIBDIR/errmsg.sh &&
-    PAD-assert_hook zkbench pre-activate || exit 1
+    PAD-assert_hook zkbench pre-install || exit 1
 
-declare -- this_module_id xtrace=
-declare -A settings
+declare -- pm jre
 
-this_module_id=$(PAD-this_module) &&
-    PAD-get_module_settings $this_module_id settings && {
-	[[ ${settings[logDir]-} =~ ^$PAD_ABSOLUTE_PATH_RE$ ]] ||
-	    PAD-error "Log directory (logDir) setting is missing or invalid."\
-		      "expected an absolute path"
-    } || exit 1
+pm=$(PAD-system_package_manager) || exit
 
-[[ -o xtrace ]] && xtrace='-x'
+case $pm in
+    */apt-get*) jre="default-jre" ;;
+    */yum*|*/dnf*|*/zypper*) jre="jre" ;;
+    *) PAD-error "invalid system package manager '$pm'"; exit 1 ;;
+esac
 
-sudo bash $xtrace <<EOF
-  mkdir -p "${settings[logDir]}"                  &&
-  mkdir -p $PAD_MODULES_CONF/zkbench              &&
-  chown $PAD_USER:$PAD_USER "${settings[logDir]}" $PAD_MODULES_CONF/zkbench
-EOF
+PAD-sudo_rbash <<<"flock ${pm%% *} $pm install $jre"
