@@ -3,9 +3,8 @@
 name: zkbench
 description: brownsys/zookeeper-benchmark built against ZooKeeper 3.8.0
 documentation: https://github.com/brownsys/zookeeper-benchmark
-version: 3.8.0-rev.4
-built-by: march@systempad.cloud
-require: padlib-^1.27.1
+version: 3.8.0-rev.5
+require: padlib-^1.32.1
 
 hooks:
   pre-install: zkbench.pre-install

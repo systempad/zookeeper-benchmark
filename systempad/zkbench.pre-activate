@@ -28,11 +28,11 @@
 #       the zkbench log directory.
 
 PAD_LIBDIR=$PAD_MODULES_ROOT/padlib/active &&
-    source $PAD_LIBDIR/serious.sh &&
+    source $PAD_LIBDIR/serious/serious.sh &&
     source $PAD_LIBDIR/module.sh &&
     source $PAD_LIBDIR/module_config.sh &&
     source $PAD_LIBDIR/paths.sh &&
-    source $PAD_LIBDIR/errmsg.sh &&
+    source $PAD_LIBDIR/serious/errmsg.sh &&
     PAD-assert_hook zkbench pre-activate || exit 1
 
 declare -- this_module_id xtrace=
